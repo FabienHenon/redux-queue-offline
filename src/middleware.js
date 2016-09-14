@@ -1,10 +1,12 @@
 import unset from 'lodash.unset'
 import { INITIAL_STATE } from './initialState'
-import { QUEUE_ACTION, ONLINE } from './actions'
+import { QUEUE_ACTION, ONLINE, STOP_FORCE_OFFLINE, EMPTY_QUEUE } from './actions'
 
 let STATE_NAME = 'offlineQueue'
 let ASYNC_PAYLOAD_FIELDS = ['payload.promise']
 let TRANSACTION_ID_PREFIX = 'transaction_'
+
+const areWeOnline = (isOnline, forceOffline) => isOnline && !forceOffline
 
 export default function middleware (stateName = STATE_NAME, asyncPayloadFields = ASYNC_PAYLOAD_FIELDS, transactionIDPrefix = TRANSACTION_ID_PREFIX) {
   STATE_NAME = stateName
@@ -14,10 +16,11 @@ export default function middleware (stateName = STATE_NAME, asyncPayloadFields =
   return ({ getState, dispatch }) => (next) => (action) => {
     const state = (getState() || {})[STATE_NAME] || INITIAL_STATE
 
-    const { isOnline, queue } = state
+    const { isOnline, queue, forceOffline } = state
 
     // check if it's a direct action for us
-    if (action.type === ONLINE) {
+    if ((action.type === STOP_FORCE_OFFLINE && isOnline) || (action.type === ONLINE && !forceOffline)) {
+      dispatch({type: EMPTY_QUEUE, payload:{}, meta:{}})
       const result = next(action)
       queue.forEach((actionInQueue) => dispatch(actionInQueue))
       return result
@@ -26,7 +29,7 @@ export default function middleware (stateName = STATE_NAME, asyncPayloadFields =
     const shouldQueue = (action.meta || {}).queueIfOffline
 
     // check if we don't need to queue the action
-    if (isOnline || !shouldQueue) {
+    if (areWeOnline(isOnline, forceOffline) || !shouldQueue) {
       return next(action)
     }
 
