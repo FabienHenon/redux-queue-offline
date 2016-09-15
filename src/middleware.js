@@ -16,12 +16,26 @@ export default function middleware (stateName = STATE_NAME, asyncPayloadFields =
   return ({ getState, dispatch }) => (next) => (action) => {
     const state = (getState() || {})[STATE_NAME] || INITIAL_STATE
 
-    const { isOnline, queue, forceOffline } = state
+    const { isOnline, forceOffline } = state
+    let { queue } = state
 
     // check if it's a direct action for us
     if ((action.type === STOP_FORCE_OFFLINE && isOnline) || (action.type === ONLINE && !forceOffline)) {
       dispatch({type: EMPTY_QUEUE, payload:{}, meta:{}})
       const result = next(action)
+      // If its a stop force offline event we add a flag in the meta data
+      if (action.type === STOP_FORCE_OFFLINE) {
+        queue = queue.map((actionInQueue) => {
+          return {
+            type: action.type,
+            payload: {...action.payload},
+            meta: {
+              ...action.meta,
+              stopForceOffline: true
+            }
+          }
+        })
+      }
       queue.forEach((actionInQueue) => dispatch(actionInQueue))
       return result
     }
