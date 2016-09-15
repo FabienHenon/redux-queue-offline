@@ -24,17 +24,8 @@ export default function middleware (stateName = STATE_NAME, asyncPayloadFields =
       dispatch({type: EMPTY_QUEUE, payload:{}, meta:{}})
       const result = next(action)
       // If its a stop force offline event we add a flag in the meta data
-      if (action.type === STOP_FORCE_OFFLINE) {
-        queue = queue.map((actionInQueue) => {
-          return {
-            type: action.type,
-            payload: {...action.payload},
-            meta: {
-              ...action.meta,
-              stopForceOffline: true
-            }
-          }
-        })
+      if (action.type === STOP_FORCE_OFFLINE && queue.length > 0) {
+        queue[queue.length - 1].meta.stopForceOffline = true;
       }
       queue.forEach((actionInQueue) => dispatch(actionInQueue))
       return result
